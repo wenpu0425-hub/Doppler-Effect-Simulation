@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="经典机械波多普勒效应交互演示：三种运动模式、波长频率联动、实时公式推导与马赫锥。">
+<title>多普勒效应可视化 · 经典机械波</title>
+<style>
+  :root{
+    --bg:#070c15;
+    --bg-2:#0a1220;
+    --panel:#0d1727;
+    --card:#0f1b2d;
+    --card-2:#0b1525;
+    --line:rgba(126,166,224,.14);
+    --line-strong:rgba(126,166,224,.26);
+    --text:#e9f0fc;
+    --muted:#8ea2c2;
+    --muted-2:#6c7f9e;
+    --cyan:#58d6ff;
+    --orange:#ffb454;
+    --green:#7ee787;
+    --red:#ff7b72;
+    --violet:#b692ff;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(1100px 620px at 18% -10%, rgba(38,92,160,.30), transparent 62%),
+      radial-gradient(900px 520px at 92% 4%, rgba(28,120,132,.18), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, #060a12 100%);
+    color:var(--text);
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:1460px; margin:0 auto; padding:22px clamp(14px,2.4vw,32px) 34px;}
+  /* ---------- header ---------- */
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:20px;}
+  .brand{display:flex; align-items:center; gap:14px; min-width:260px}
+  .brand-mark{
+    width:48px; height:48px; border-radius:14px; flex:none;
+    display:grid; place-items:center; position:relative; overflow:hidden;
+    background:linear-gradient(150deg, rgba(88,214,255,.2), rgba(88,214,255,.03));
+    border:1px solid rgba(88,214,255,.32);
+    box-shadow:0 8px 28px rgba(20,120,180,.18), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .brand-mark::before,.brand-mark::after{
+    content:""; position:absolute; border:1.5px solid rgba(88,214,255,.75); border-radius:50%;
+  }
+  .brand-mark::before{width:10px;height:10px;left:12px;top:19px;background:var(--cyan);box-shadow:0 0 14px rgba(88,214,255,.85);}
+  .brand-mark::after{width:26px;height:26px;left:9px;top:11px;opacity:.5;}
+  .brand-text h1{margin:0; font-size:21px; letter-spacing:.4px; font-weight:650}
+  .brand-text p{margin:4px 0 0; color:var(--muted); font-size:12.5px; letter-spacing:.3px}
+  .mode-tabs{
+    display:flex; gap:6px; padding:5px; border-radius:14px;
+    background:rgba(12,22,38,.68); border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .mode-tab{
+    position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+    padding:9px 16px 9px 14px; border-radius:10px; border:1px solid transparent;
+    background:transparent; color:var(--muted); cursor:pointer; text-align:left;
+    transition:background .18s ease, color .18s ease, border-color .18s ease;
+    font-family:inherit;
+  }
+  .mode-tab span{font-size:9.5px; letter-spacing:1.4px; color:var(--muted-2); font-weight:700}
+  .mode-tab strong{font-size:13.5px; font-weight:600; letter-spacing:.2px}
+  .mode-tab small{font-size:10.5px; color:var(--muted-2); margin-top:1px}
+  .mode-tab:hover{color:var(--text); background:rgba(88,214,255,.06)}
+  .mode-tab.active{
+    color:var(--text);
+    background:linear-gradient(160deg, rgba(88,214,255,.16), rgba(88,214,255,.05));
+    border-color:rgba(88,214,255,.34);
+    box-shadow:0 4px 18px rgba(20,120,180,.16), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  .mode-tab.active span{color:var(--cyan)}
+  .mode-tab.active small{color:#9fc4e2}
+  /* ---------- layout ---------- */
+  .layout{display:grid; grid-template-columns:minmax(0,1fr) 356px; gap:18px; align-items:start}
+  .stage{min-width:0; display:flex; flex-direction:column; gap:14px}
+  /* ---------- canvas ---------- */
+  .canvas-wrap{
+    position:relative; width:100%; aspect-ratio:16/9; min-height:360px; overflow:hidden;
+    border-radius:18px; border:1px solid var(--line-strong);
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(28,58,104,.42), transparent 60%),
+      radial-gradient(100% 100% at 50% 50%, #0a1526 0%, #07101d 68%, #050a13 100%);
+    box-shadow:0 26px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .canvas-wrap canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+  .hud{position:absolute; z-index:2; pointer-events:none}
+  .hud-top-left{top:14px; left:14px; display:flex; flex-direction:column; gap:6px; align-items:flex-start}
+  .chip{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:11.5px; letter-spacing:.25px; color:#cfe9ff;
+    background:rgba(7,13,24,.72); border:1px solid rgba(88,214,255,.22);
+    padding:6px 10px; border-radius:9px; backdrop-filter:blur(8px);
+  }
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--cyan); box-shadow:0 0 9px var(--cyan)}
+  .chip.ghost{color:var(--muted); border-color:var(--line); background:rgba(7,13,24,.55)}
+  .chip.ghost::before{background:var(--green); box-shadow:0 0 9px var(--green); width:5px;height:5px}
+  .chip.ghost.paused{color:#ffd39b}
+  .chip.ghost.paused::before{background:var(--orange); box-shadow:0 0 9px var(--orange)}
+  .hud-top-right{top:14px; right:14px}
+  .obs{
+    min-width:196px; padding:11px 15px 12px; border-radius:14px;
+    background:linear-gradient(165deg, rgba(9,17,31,.88), rgba(7,13,24,.72));
+    border:1px solid rgba(88,214,255,.24);
+    box-shadow:0 14px 40px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
+    backdrop-filter:blur(12px);
+  }
+  .obs-label{display:block; font-size:11px; letter-spacing:.5px; color:#9fc4e2}
+  .obs-value{display:flex; align-items:baseline; gap:5px; margin-top:2px}
+  .obs-value strong{
+    font-size:clamp(24px,2.5vw,34px); line-height:1.05; font-weight:650; letter-spacing:-.8px;
+    color:#eafaff; font-variant-numeric:tabular-nums; text-shadow:0 0 22px rgba(88,214,255,.35);
+  }
+  .obs-value span{font-size:12px; color:var(--muted); letter-spacing:.4px}
+  .obs-trend{display:block; margin-top:3px; font-size:10.5px; color:var(--muted); letter-spacing:.3px}
+  .obs-trend.high{color:#8ff0c8}
+  .obs-trend.low{color:#ffc08d}
+  .obs-trend.invalid{color:#ff9b92}
+  .hud-bottom{
+    left:14px; right:14px; bottom:12px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:14px;
+  }
+  .legend{display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:10.5px; color:#9fb4d2}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block}
+  .dot.source{background:var(--orange); box-shadow:0 0 9px rgba(255,180,84,.8)}
+  .dot.receiver{background:var(--green); box-shadow:0 0 9px rgba(126,231,135,.75)}
+  .wave{width:12px; height:12px; border-radius:50%; border:1px solid rgba(88,214,255,.75); display:inline-block}
+  .scalebar{display:flex; flex-direction:column; align-items:flex-end; gap:4px; color:var(--muted); font-size:10px; letter-spacing:.4px}
+  .scalebar span{
+    display:block; height:7px; width:120px;
+    border-left:1px solid rgba(207,233,255,.7);
+    border-right:1px solid rgba(207,233,255,.7);
+    border-bottom:1px solid rgba(207,233,255,.7);
+  }
+  /* ---------- toolbar ---------- */
+  .toolbar{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 12px; border-radius:14px; border:1px solid var(--line);
+    background:rgba(11,20,34,.6);
+  }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    font-family:inherit; font-size:12.5px; font-weight:600; letter-spacing:.2px;
+    color:#dceafc; background:rgba(20,35,56,.72); border:1px solid var(--line-strong);
+    padding:8px 14px; border-radius:9px; cursor:pointer;
+    transition:background .16s ease, border-color .16s ease, transform .16s ease;
+  }
+  .btn:hover{background:rgba(30,52,82,.8); border-color:rgba(120,170,230,.4)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{
+    color:#06202c; background:linear-gradient(180deg,#7fe4ff,#49c9f2);
+    border-color:rgba(140,235,255,.7); box-shadow:0 4px 16px rgba(40,180,230,.25);
+  }
+  .btn.primary:hover{background:linear-gradient(180deg,#95ebff,#59d1f8)}
+  .btn.danger{color:#2a0806; background:linear-gradient(180deg,#ffb3ad,#ff7b72); border-color:rgba(255,150,140,.7)}
+  .btn .icon{font-size:11px; letter-spacing:0}
+  .slow{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); margin-left:2px}
+  .slow select{
+    font-family:inherit; font-size:11.5px; color:var(--text); background:#0a1525;
+    border:1px solid var(--line-strong); border-radius:7px; padding:6px 8px; outline:none; cursor:pointer;
+  }
+  .toolbar-note{margin-left:auto; font-size:10.5px; color:var(--muted-2); letter-spacing:.25px}
+  /* ---------- cards ---------- */
+  .card{
+    background:linear-gradient(170deg, rgba(15,27,45,.94), rgba(10,19,33,.92));
+    border:1px solid var(--line); border-radius:16px; padding:16px 17px;
+    box-shadow:0 16px 44px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .card h2{margin:0; font-size:13px; font-weight:650; letter-spacing:.7px; color:#d9e8fb}
+  .card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
+  .badge{
+    display:inline-flex; align-items:center; font-size:10px; letter-spacing:.4px;
+    padding:3px 8px; border-radius:999px; color:#a9d8f2;
+    background:rgba(88,214,255,.09); border:1px solid rgba(88,214,255,.22);
+  }
+  .badge.ghost{color:var(--muted); background:rgba(120,150,190,.06); border-color:var(--line)}
+  .badge.danger{color:#ffb0a8; background:rgba(255,123,114,.1); border-color:rgba(255,123,114,.3)}
+  .badge.small{font-size:9.5px; padding:2px 7px}
+  /* ---------- parameters ---------- */
+  .params{display:flex; flex-direction:column}
+  .param{padding:13px 0 11px; border-bottom:1px solid rgba(126,166,224,.09)}
+  .param:first-child{padding-top:2px}
+  .param:last-child{border-bottom:0; padding-bottom:2px}
+  .param-top{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .param-label{display:flex; align-items:center; gap:7px; font-size:13px; color:#dbe8fa; letter-spacing:.15px}
+  .param-label em{font-style:normal; color:var(--muted); font-family:"Cambria Math",Georgia,serif; font-size:13px}
+  .param-label .lock-tag{
+    font-size:9px; letter-spacing:.4px; color:#9fb4d2; padding:2px 6px; border-radius:999px;
+    background:rgba(120,150,190,.1); border:1px solid rgba(120,150,190,.18);
+  }
+  .param-input{
+    display:flex; align-items:center; gap:5px; padding:4px 8px; border-radius:8px;
+    background:#091322; border:1px solid var(--line);
+  }
+  .param-input input{
+    width:64px; padding:0; border:0; outline:0; background:transparent; color:var(--text);
+    font-family:inherit; font-size:12.5px; text-align:right; font-variant-numeric:tabular-nums;
+  }
+  .param-input input:disabled{color:var(--muted-2)}
+  .param-input span{font-size:10px; color:var(--muted-2); letter-spacing:.2px}
+  input[type="range"]{
+    -webkit-appearance:none; appearance:none; width:100%; height:18px;
+    margin:9px 0 0; background:transparent; cursor:pointer; outline:none;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:5px; border-radius:999px;
+    background:linear-gradient(to right,
+      var(--accent,#58d6ff) 0%, var(--accent,#58d6ff) var(--p,50%),
+      #1a2942 var(--p,50%), #1a2942 100%);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; margin-top:-5px; border-radius:50%;
+    background:#eef9ff; border:3px solid var(--accent,#58d6ff);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent,#58d6ff) 16%, transparent);
+  }
+  input[type="range"]::-moz-range-track{height:5px; border-radius:999px; background:#1a2942}
+  input[type="range"]::-moz-range-progress{height:5px; border-radius:999px; background:var(--accent,#58d6ff)}
+  input[type="range"]::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%; background:#eef9ff;
+    border:3px solid var(--accent,#58d6ff);
+  }
+  input[type="range"]:disabled{opacity:.28; cursor:not-allowed}
+  .param-foot{display:flex; justify-content:space-between; gap:8px; margin-top:3px; font-size:9.5px; color:var(--muted-2); letter-spacing:.2px}
+  .param.locked .param-label{color:var(--muted)}
+  .dir-toggle{display:flex; gap:6px; margin-top:8px}
+  .dir-toggle button{
+    flex:1; font-family:inherit; font-size:11px; letter-spacing:.2px; color:var(--muted);
+    background:#091322; border:1px solid var(--line); border-radius:8px; padding:6px 6px; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .dir-toggle button:hover{color:var(--text); border-color:rgba(120,170,230,.35)}
+  .dir-toggle button.active{
+    color:#dff7ff; border-color:rgba(88,214,255,.42);
+    background:linear-gradient(180deg, rgba(88,214,255,.16), rgba(88,214,255,.06));
+  }
+  /* ---------- stats ---------- */
+  .stats dl{margin:12px 0 0; display:flex; flex-direction:column; gap:0}
+  .stats dl > div{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px dashed rgba(126,166,224,.1)}
+  .stats dl > div:last-child{border-bottom:0; padding-bottom:0}
+  .stats dt{font-size:11px; color:var(--muted)}
+  .stats dd{margin:0; font-size:12px; color:#d8ecff; font-variant-numeric:tabular-nums; letter-spacing:.2px}
+  /* ---------- formula ---------- */
+  .formula-card{padding-bottom:14px}
+  .formula{display:flex; flex-direction:column; gap:6px}
+  .eq-main{
+    font-family:"Cambria Math","STIX Two Math",Cambria,Georgia,"Times New Roman",serif;
+    font-size:20px; color:#f2f8ff; display:flex; align-items:center; flex-wrap:wrap; gap:3px 4px;
+  }
+  .eq-sub{
+    font-family:"Cambria Math","STIX Two Math",Cambria,Georgia,serif;
+    font-size:15px; color:#b9cde7; display:flex; align-items:center; flex-wrap:wrap; gap:3px 4px;
+  }
+  .eq-sub b,.eq-main b{color:#8ef0ff; font-weight:600}
+  .frac{display:inline-flex; flex-direction:column; align-items:stretch; text-align:center; vertical-align:middle; margin:0 2px; line-height:1.15}
+  .frac .num{padding:0 7px 1px; border-bottom:1px solid rgba(180,210,245,.5)}
+  .frac .den{padding:1px 7px 0}
+  .steps{list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:7px; counter-reset:step}
+  .steps li{display:flex; gap:9px; align-items:flex-start; font-size:12px; line-height:1.55; color:#adc2dd}
+  .steps li b{color:#dff8ff; font-weight:600}
+  .steps .n{
+    flex:none; width:18px; height:18px; margin-top:1px; border-radius:50%;
+    display:grid; place-items:center; font-size:9.5px; font-weight:700;
+    color:#9fe8ff; background:rgba(88,214,255,.1); border:1px solid rgba(88,214,255,.24);
+  }
+  .formula-note{margin:8px 0 0; font-size:11px; line-height:1.55; color:#e2bd8e; background:rgba(255,180,84,.06); border-left:2px solid rgba(255,180,84,.5); padding:7px 10px; border-radius:0 7px 7px 0}
+  .hint{margin:12px 0 0; font-size:10px; line-height:1.6; color:var(--muted-2)}
+  .warn{
+    border:1px solid rgba(255,123,114,.3); background:rgba(255,123,114,.07);
+    border-radius:11px; padding:11px 13px; margin-bottom:8px;
+  }
+  .warn b{display:block; font-size:12.5px; color:#ffb0a8; margin-bottom:4px; letter-spacing:.3px}
+  .warn p{margin:0; font-size:11.5px; line-height:1.6; color:#e6b9b5}
+  /* ---------- modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px;
+    background:rgba(3,7,14,.72); backdrop-filter:blur(5px);
+  }
+  .modal{
+    width:min(470px,100%); border-radius:18px; padding:22px 22px 19px;
+    background:
+      radial-gradient(120% 100% at 0% 0%, rgba(255,180,84,.12), transparent 55%),
+      linear-gradient(165deg,#132138,#0c1626);
+    border:1px solid rgba(255,180,84,.32);
+    box-shadow:0 30px 90px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
+    animation:modal-in .18s ease-out;
+  }
+  @keyframes modal-in{from{opacity:0; transform:translateY(8px) scale(.985)} to{opacity:1; transform:none}}
+  .modal-icon{
+    width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+    font-size:20px; margin-bottom:12px;
+    background:rgba(255,180,84,.12); border:1px solid rgba(255,180,84,.3); color:#ffc77e;
+  }
+  .modal h3{margin:0 0 8px; font-size:17px; letter-spacing:.3px}
+  .modal p{margin:0 0 8px; font-size:12.5px; line-height:1.65; color:#b9c9e2}
+  .modal p.modal-sub{color:#e6cba6}
+  .modal-actions{display:flex; justify-content:flex-end; gap:9px; margin-top:18px; flex-wrap:wrap}
+  /* ---------- footer ---------- */
+  footer{margin-top:22px; padding-top:14px; border-top:1px solid rgba(126,166,224,.1); display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; color:var(--muted-2); font-size:10.5px; letter-spacing:.25px}
+  /* ---------- responsive ---------- */
+  @media (max-width:1080px){
+    .layout{grid-template-columns:minmax(0,1fr) 320px}
+    .mode-tab{padding:8px 12px}
+  }
+  @media (max-width:920px){
+    .layout{grid-template-columns:1fr}
+    .panel{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start}
+    .canvas-wrap{min-height:340px}
+    header{align-items:stretch}
+    .mode-tabs{width:100%; justify-content:space-between}
+    .mode-tab{flex:1}
+    .toolbar-note{display:none}
+  }
+  @media (max-width:640px){
+    .app{padding:14px 12px 26px}
+    .panel{grid-template-columns:1fr}
+    .canvas-wrap{aspect-ratio:4/3; min-height:300px}
+    .obs{min-width:150px; padding:9px 12px}
+    .obs-value strong{font-size:26px}
+    .legend{gap:10px; font-size:9.5px}
+    .mode-tab span{display:none}
+    .brand-text h1{font-size:18px}
+    .hud-top-left{top:10px; left:10px}
+    .hud-top-right{top:10px; right:10px}
+    .hud-bottom{left:10px; right:10px; bottom:9px}
+    .toolbar{padding:8px}
+    .slow{margin-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <h1>多普勒效应可视化</h1>
+        <p>经典机械波 · 波源与接收器沿同一直线运动</p>
+      </div>
+    </div>
+    <nav class="mode-tabs" id="modeTabs" aria-label="模式选择">
+      <button class="mode-tab active" data-mode="receiverMoving">
+        <span>模式 01</span><strong>接收器运动</strong><small>波源静止</small>
+      </button>
+      <button class="mode-tab" data-mode="sourceMoving">
+        <span>模式 02</span><strong>波源运动</strong><small>接收器静止</small>
+      </button>
+      <button class="mode-tab" data-mode="bothMoving">
+        <span>模式 03</span><strong>两者都运动</strong><small>独立方向</small>
+      </button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="scene" aria-label="多普勒效应波纹动画"></canvas>
+        <div class="hud hud-top-left">
+          <div class="chip" id="modeChip">接收器运动 · 波源静止</div>
+          <div class="chip ghost" id="playChip">运行中</div>
+        </div>
+        <div class="hud hud-top-right">
+          <div class="obs">
+            <span class="obs-label">接收器观测频率 f′</span>
+            <div class="obs-value"><strong id="fObs">—</strong><span>Hz</span></div>
+            <span class="obs-trend" id="trend">—</span>
+          </div>
+        </div>
+        <div class="hud hud-bottom">
+          <div class="legend">
+            <span><i class="dot source"></i>波源</span>
+            <span><i class="dot receiver"></i>接收器</span>
+            <span><i class="wave"></i>波前</span>
+          </div>
+          <div class="scalebar"><span id="scaleLine"></span><em id="scaleText">5 m</em></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn primary" id="playBtn"><span class="icon">❚❚</span>暂停</button>
+        <button class="btn" id="resetBtn">↺ 重置</button>
+        <label class="slow">慢放
+          <select id="slowSelect">
+            <option value="0.02">50×</option>
+            <option value="0.01" selected>100×</option>
+            <option value="0.005">200×</option>
+            <option value="0.0025">400×</option>
+          </select>
+        </label>
+        <span class="toolbar-note">屏幕按真实单位缩放，时间轴为慢放显示</span>
+      </div>
+
+      <section class="card formula-card">
+        <div class="card-head">
+          <h2>实时公式推导</h2>
+          <span class="badge" id="formulaBadge">接收器靠近</span>
+        </div>
+        <div class="formula" id="formula"></div>
+        <p class="hint">符号约定：靠近时分子取 +v<sub>r</sub>、分母取 v − v<sub>s</sub>；远离时分子取 −v<sub>r</sub>、分母取 v + v<sub>s</sub>。所有速度均沿同一直线。</p>
+      </section>
+    </section>
+
+    <aside class="panel">
+      <section class="card">
+        <div class="card-head">
+          <h2>参数</h2>
+          <span class="badge ghost">约束 v = λf</span>
+        </div>
+        <div class="params">
+          <div class="param" id="rowV">
+            <div class="param-top">
+              <div class="param-label"><span>波速</span><em>v</em></div>
+              <div class="param-input"><input id="vNum" type="number" min="100" max="500" step="1" value="340" aria-label="波速"><span>m/s</span></div>
+            </div>
+            <input id="vRange" type="range" min="100" max="500" step="1" value="340" style="--accent:#58d6ff" aria-label="波速滑块">
+            <div class="param-foot"><span>介质中的传播速度</span><span>100 – 500 m/s</span></div>
+          </div>
+
+          <div class="param" id="rowF">
+            <div class="param-top">
+              <div class="param-label"><span>频率</span><em>f</em></div>
+              <div class="param-input"><input id="fNum" type="number" min="100" max="1000" step="1" value="500" aria-label="发射频率"><span>Hz</span></div>
+            </div>
+            <input id="fRange" type="range" min="100" max="1000" step="1" value="500" style="--accent:#58d6ff" aria-label="频率滑块">
+            <div class="param-foot"><span>波源发射频率</span><span>100 – 1000 Hz</span></div>
+          </div>
+
+          <div class="param" id="rowL">
+            <div class="param-top">
+              <div class="param-label"><span>波长</span><em>λ</em></div>
+              <div class="param-input"><input id="lNum" type="number" min="0.1" max="5" step="0.001" value="0.680" aria-label="波长"><span>m</span></div>
+            </div>
+            <input id="lRange" type="range" min="0.34" max="3.4" step="0.001" value="0.68" style="--accent:#58d6ff" aria-label="波长滑块">
+            <div class="param-foot"><span>改变时保持波速，重算频率</span><span id="lRangeText">0.340 – 3.400 m</span></div>
+          </div>
+
+          <div class="param" id="rowVs">
+            <div class="param-top">
+              <div class="param-label"><span>波源速度</span><em>v<sub>s</sub></em><span class="lock-tag" id="vsLockTag" hidden>静止</span><span class="badge ghost small" id="modelBadge" hidden>亚音速模型</span></div>
+              <div class="param-input"><input id="vsNum" type="number" min="0" max="680" step="1" value="0" aria-label="波源速度"><span>m/s</span></div>
+            </div>
+            <input id="vsRange" type="range" min="0" max="680" step="1" value="0" style="--accent:#ffb454" aria-label="波源速度滑块">
+            <div class="dir-toggle" id="vsDirCtl">
+              <button type="button" data-dir="approach" class="active">靠近接收器</button>
+              <button type="button" data-dir="recede">远离接收器</button>
+            </div>
+            <div class="param-foot"><span id="vsHint">超过 0.95v 时提示切换冲击波模型</span><span id="vsRangeText">0 – 680 m/s</span></div>
+          </div>
+
+          <div class="param" id="rowVr">
+            <div class="param-top">
+              <div class="param-label"><span>接收器速度</span><em>v<sub>r</sub></em><span class="lock-tag" id="vrLockTag" hidden>静止</span></div>
+              <div class="param-input"><input id="vrNum" type="number" min="0" max="680" step="1" value="34" aria-label="接收器速度"><span>m/s</span></div>
+            </div>
+            <input id="vrRange" type="range" min="0" max="680" step="1" value="34" style="--accent:#7ee787" aria-label="接收器速度滑块">
+            <div class="dir-toggle" id="vrDirCtl">
+              <button type="button" data-dir="approach" class="active">靠近波源</button>
+              <button type="button" data-dir="recede">远离波源</button>
+            </div>
+            <div class="param-foot"><span id="vrHint">速度上限为 2v</span><span id="vrRangeText">0 – 680 m/s</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card stats">
+        <div class="card-head">
+          <h2>当前状态</h2>
+          <span class="badge ghost" id="statBadge">亚音速</span>
+        </div>
+        <dl>
+          <div><dt>介质波长 λ</dt><dd id="statLambda">0.680 m</dd></div>
+          <div><dt>运动前方波前间距</dt><dd id="statFront">0.680 m</dd></div>
+          <div><dt>运动后方波前间距</dt><dd id="statBack">0.680 m</dd></div>
+          <div><dt>观测频率 f′</dt><dd id="statF">—</dd></div>
+          <div><dt>马赫数 M</dt><dd id="statMach">—</dd></div>
+          <div><dt>马赫角 θ</dt><dd id="statAngle">—</dd></div>
+        </dl>
+      </section>
+    </aside>
+  </main>
+
+  <footer>
+    <span>经典机械波近似：忽略相对论效应与介质自身运动；波源、接收器共线。</span>
+    <span>拖动参数即时更新 · 静止一方速度锁定为 0</span>
+  </footer>
+</div>
+
+<div class="modal-backdrop" id="shockModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shockTitle">
+    <div class="modal-icon" aria-hidden="true">⚡</div>
+    <h3 id="shockTitle">接近马赫极限</h3>
+    <p>波源速度已达到波速的 95%。当 <b>v<sub>s</sub> ≥ v</b> 时，源前方的波前相互堆积、形成激波，经典多普勒公式不再给出有限的周期频率。</p>
+    <p class="modal-sub">是否切换到冲击波模型：允许超音速，并在画面中绘制马赫锥？</p>
+    <div class="modal-actions">
+      <button class="btn" id="shockCancel" type="button">保持亚音速</button>
+      <button class="btn danger" id="shockConfirm" type="button">切换冲击波模型</button>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="padding:20px;color:#ffb454">此页面需要启用 JavaScript 才能运行。</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  // ===== 常量 =====
+  const WORLD_W = 30;          // 视口宽度（米）
+  const BOUND_L = 2.5;
+  const BOUND_R = 27.5;
+  const MAX_R = 46;            // 波前最大半径（米）
+  const MAX_WAVES = 600;
+  const SHOCK_RATIO = 0.95;
+
+  const $ = (id) => document.getElementById(id);
+
+  const canvas = $('scene');
+  const ctx = canvas.getContext('2d');
+  const wrap = $('canvasWrap');
+
+  const state = {
+    mode: 'receiverMoving',
+    v: 340,
+    f: 500,
+    vs: 34,
+    vr: 34,
+    vsDir: 'approach',
+    vrDir: 'approach',
+    shock: false,
+    paused: false,
+    slow: 0.01,
+    time: 0,
+    nextEmit: 0,
+    waves: [],
+    sourceX: 11,
+    receiverX: 24,
+    dialogOpen: false,
+    pendingVs: 0,
+  };
+
+  const view = { w: 0, h: 0, scale: 1, cy: 0 };
+
+  const els = {
+    modeTabs: $('modeTabs'),
+    modeChip: $('modeChip'),
+    playChip: $('playChip'),
+    fObs: $('fObs'),
+    trend: $('trend'),
+    scaleLine: $('scaleLine'),
+    scaleText: $('scaleText'),
+    playBtn: $('playBtn'),
+    resetBtn: $('resetBtn'),
+    slowSelect: $('slowSelect'),
+    vRange: $('vRange'), vNum: $('vNum'),
+    fRange: $('fRange'), fNum: $('fNum'),
+    lRange: $('lRange'), lNum: $('lNum'), lRangeText: $('lRangeText'),
+    vsRange: $('vsRange'), vsNum: $('vsNum'), vsDirCtl: $('vsDirCtl'),
+    vsLockTag: $('vsLockTag'), vsRangeText: $('vsRangeText'),
+    vrRange: $('vrRange'), vrNum: $('vrNum'), vrDirCtl: $('vrDirCtl'),
+    vrLockTag: $('vrLockTag'), vrRangeText: $('vrRangeText'),
+    rowVs: $('rowVs'), rowVr: $('rowVr'),
+    modelBadge: $('modelBadge'),
+    statBadge: $('statBadge'),
+    statLambda: $('statLambda'), statFront: $('statFront'), statBack: $('statBack'),
+    statF: $('statF'), statMach: $('statMach'), statAngle: $('statAngle'),
+    formula: $('formula'), formulaBadge: $('formulaBadge'),
+    shockModal: $('shockModal'), shockConfirm: $('shockConfirm'), shockCancel: $('shockCancel'),
+    vsHint: $('vsHint'), vrHint: $('vrHint'),
+    app: document.querySelector('.app'),
+  };
+
+  // ===== 工具函数 =====
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const fmt = (x, d = 1) => (Math.abs(x) < 1e-9 ? 0 : x).toFixed(d);
+  const dirSign = (d) => (d === 'approach' ? 1 : -1);
+  const SUB_S = 'v<sub>s</sub>';
+  const SUB_R = 'v<sub>r</sub>';
+  const frac = (num, den) => `<span class="frac"><span class="num">${num}</span><span class="den">${den}</span></span>`;
+
+  // 有效速度：静止一方的速度按 0 参与计算，但保留滑块记忆值
+  function effVs() { return state.mode === 'receiverMoving' ? 0 : state.vs; }
+  function effVr() { return state.mode === 'sourceMoving' ? 0 : state.vr; }
+
+  function compute() {
+    const v = state.v;
+    const f = state.f;
+    const vs = effVs();
+    const vr = effVr();
+    const lam = v / f;
+    const sS = dirSign(state.vsDir);
+    const sR = dirSign(state.vrDir);
+
+    const den = v - sS * vs;   // 靠近时 v - v_s，远离时 v + v_s
+    const num = v + sR * vr;   // 靠近时 v + v_r，远离时 v - v_r
+
+    const shockAhead = vs > 0 && den <= 0;
+    const recvOutrun = vr > 0 && num <= 0;
+    const valid = !shockAhead && !recvOutrun;
+    const fObs = valid ? f * num / den : null;
+
+    const mach = vs >= v && vs > 0 ? vs / v : null;
+    return {
+      v, f, vs, vr, lam, den, num, shockAhead, recvOutrun, valid, fObs,
+      front: (v - vs) / f,
+      back: (v + vs) / f,
+      mach,
+      machAngle: mach ? Math.asin(v / vs) * 180 / Math.PI : null,
+    };
+  }
+
+  function clearWaves() {
+    state.waves.length = 0;
+    state.nextEmit = state.time;
+  }
+
+  function initialPositions() {
+    if (state.mode === 'receiverMoving') {
+      state.sourceX = 11;
+      state.receiverX = state.vrDir === 'approach' ? 24 : 14;
+    } else if (state.mode === 'sourceMoving') {
+      state.receiverX = 20;
+      state.sourceX = state.vsDir === 'approach' ? 5 : 14;
+    } else {
+      state.sourceX = 8;
+      state.receiverX = 23;
+    }
+  }
+
+  function resetScene() {
+    state.time = 0;
+    state.nextEmit = 0;
+    state.waves.length = 0;
+    initialPositions();
+    syncControls();
+    updateHud();
+    draw();
+  }
+
+  function resetSceneSoft() {
+    state.time = 0;
+    state.nextEmit = 0;
+    state.waves.length = 0;
+    initialPositions();
+    updateHud();
+  }
+
+  // ===== 参数联动 =====
+  // 速度回落到亚音速区间后恢复亚音速模型，下次接近音速时重新提示
+  function refreshShockModel() {
+    if (state.shock && state.vs < SHOCK_RATIO * state.v) state.shock = false;
+  }
+
+  function setV(value) {
+    const nv = clamp(value, 100, 500);
+    state.v = nv;
+    state.vs = clamp(state.vs, 0, state.shock ? 2 * nv : SHOCK_RATIO * nv);
+    state.vr = clamp(state.vr, 0, 2 * nv);
+    refreshShockModel();
+    afterParamChange();
+  }
+
+  function setF(value) {
+    state.f = clamp(value, 100, 1000);
+    afterParamChange();
+  }
+
+  function setLambda(value) {
+    const fNew = clamp(state.v / Math.max(value, 1e-6), 100, 1000);
+    state.f = fNew;
+    afterParamChange();
+  }
+
+  function requestSpeed(kind, value) {
+    if (state.dialogOpen) return;
+    const maxSpeed = 2 * state.v;
+    let val = clamp(Number.isFinite(value) ? value : 0, 0, maxSpeed);
+
+    if (kind === 'vs' && !state.shock && val >= SHOCK_RATIO * state.v) {
+      openShockDialog(val);
+      return;
+    }
+    state[kind] = val;
+    refreshShockModel();
+    afterParamChange();
+  }
+
+  function afterParamChange() {
+    clearWaves();
+    syncControls();
+    updateHud();
+    draw();
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    resetScene();
+    updateModeTabs();
+  }
+
+  function setDirection(kind, dir) {
+    state[kind + 'Dir'] = dir;
+    resetScene();
+  }
+
+  // ===== 冲击波弹窗 =====
+  function openShockDialog(value) {
+    state.dialogOpen = true;
+    state.pendingVs = value;
+    state.lastFocus = document.activeElement;
+    els.shockModal.hidden = false;
+    els.app.inert = true;
+    syncControls();
+    requestAnimationFrame(() => els.shockConfirm.focus());
+  }
+
+  function closeShockDialog(confirmed) {
+    if (!state.dialogOpen) return;
+    if (confirmed) {
+      state.shock = true;
+      state.vs = clamp(state.pendingVs, 0, 2 * state.v);
+    }
+    state.dialogOpen = false;
+    state.pendingVs = 0;
+    els.shockModal.hidden = true;
+    els.app.inert = false;
+    if (confirmed) {
+      afterParamChange();
+    } else {
+      syncControls();
+    }
+    if (state.lastFocus && typeof state.lastFocus.focus === 'function') {
+      state.lastFocus.focus();
+    }
+    state.lastFocus = null;
+  }
+
+  // ===== 控件同步 =====
+  function setRangeFill(el) {
+    const min = parseFloat(el.min) || 0;
+    const max = parseFloat(el.max) || 1;
+    const val = parseFloat(el.value) || 0;
+    const p = max > min ? ((val - min) / (max - min)) * 100 : 0;
+    el.style.setProperty('--p', p.toFixed(2) + '%');
+  }
+
+  function setDirButtons(container, activeDir) {
+    container.querySelectorAll('button[data-dir]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.dir === activeDir);
+    });
+  }
+
+  function syncControls() {
+    const v = state.v;
+    const lam = v / state.f;
+
+    // v
+    els.vRange.value = v;
+    els.vNum.value = Math.round(v);
+    setRangeFill(els.vRange);
+
+    // f
+    els.fRange.value = state.f;
+    els.fNum.value = Math.round(state.f);
+    setRangeFill(els.fRange);
+
+    // λ
+    const lMin = v / 1000;
+    const lMax = v / 100;
+    els.lRange.min = lMin.toFixed(3);
+    els.lRange.max = lMax.toFixed(3);
+    els.lRange.value = lam;
+    els.lNum.value = lam.toFixed(3);
+    els.lNum.min = lMin.toFixed(3);
+    els.lNum.max = lMax.toFixed(3);
+    els.lRangeText.textContent = `${lMin.toFixed(3)} – ${lMax.toFixed(3)} m`;
+    setRangeFill(els.lRange);
+
+    // 速度范围
+    const maxSpeed = 2 * v;
+    els.vsRange.max = maxSpeed;
+    els.vrRange.max = maxSpeed;
+    els.vsNum.max = maxSpeed;
+    els.vrNum.max = maxSpeed;
+    els.vsRangeText.textContent = `0 – ${Math.round(maxSpeed)} m/s`;
+    els.vrRangeText.textContent = `0 – ${Math.round(maxSpeed)} m/s`;
+
+    const vsLocked = state.mode === 'receiverMoving';
+    const vrLocked = state.mode === 'sourceMoving';
+
+    els.rowVs.classList.toggle('locked', vsLocked);
+    els.rowVr.classList.toggle('locked', vrLocked);
+    els.vsRange.disabled = vsLocked;
+    els.vsNum.disabled = vsLocked;
+    els.vrRange.disabled = vrLocked;
+    els.vrNum.disabled = vrLocked;
+    els.vsDirCtl.hidden = vsLocked;
+    els.vrDirCtl.hidden = vrLocked;
+    els.vsLockTag.hidden = !vsLocked;
+    els.vrLockTag.hidden = !vrLocked;
+
+    els.vsRange.value = vsLocked ? 0 : state.vs;
+    els.vsNum.value = vsLocked ? 0 : Math.round(state.vs);
+    els.vrRange.value = vrLocked ? 0 : state.vr;
+    els.vrNum.value = vrLocked ? 0 : Math.round(state.vr);
+    setRangeFill(els.vsRange);
+    setRangeFill(els.vrRange);
+
+    setDirButtons(els.vsDirCtl, state.vsDir);
+    setDirButtons(els.vrDirCtl, state.vrDir);
+
+    // 模型标签跟随当前实际速度，而不是一次性的确认状态
+    const supersonic = state.vs >= state.v && state.vs > 0;
+    els.modelBadge.hidden = vsLocked;
+    els.modelBadge.textContent = supersonic ? '冲击波模型' : '亚音速模型';
+    els.modelBadge.className = 'badge small' + (supersonic ? ' danger' : ' ghost');
+
+    if (vsLocked) {
+      els.vsHint.textContent = '本模式下波源保持静止';
+    } else if (supersonic) {
+      els.vsHint.textContent = '超音速运行，画面显示马赫锥';
+    } else if (state.shock) {
+      els.vsHint.textContent = '冲击波模型已启用，可超过波速';
+    } else {
+      els.vsHint.textContent = '超过 0.95v 时提示切换冲击波模型';
+    }
+    els.vrHint.textContent = '速度上限为 2v';
+
+    updateModeTabs();
+    updatePlayUi();
+  }
+
+  function updateModeTabs() {
+    els.modeTabs.querySelectorAll('[data-mode]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.mode === state.mode);
+    });
+  }
+
+  function updatePlayUi() {
+    els.playBtn.innerHTML = state.paused
+      ? '<span class="icon">▶</span>播放'
+      : '<span class="icon">❚❚</span>暂停';
+    els.playChip.textContent = state.paused ? '已暂停' : '运行中';
+    els.playChip.classList.toggle('paused', state.paused);
+  }
+
+  // ===== HUD 与公式 =====
+  const MODE_NAMES = {
+    receiverMoving: '接收器运动 · 波源静止',
+    sourceMoving: '波源运动 · 接收器静止',
+    bothMoving: '波源与接收器同时运动',
+  };
+
+  function directionBadge(c) {
+    if (c.recvOutrun) return '收不到波';
+    if (c.shockAhead) return '激波';
+    if (c.vs > 0 && c.vr > 0) {
+      if (state.vsDir === 'approach' && state.vrDir === 'approach') return '相互靠近';
+      if (state.vsDir === 'recede' && state.vrDir === 'recede') return '相互远离';
+      return '一近一远';
+    }
+    if (c.vs > 0) return state.vsDir === 'approach' ? '波源靠近' : '波源远离';
+    if (c.vr > 0) return state.vrDir === 'approach' ? '接收器靠近' : '接收器远离';
+    return '相对静止';
+  }
+
+  function updateHud() {
+    const c = compute();
+    els.modeChip.textContent = MODE_NAMES[state.mode];
+
+    if (c.valid) {
+      els.fObs.textContent = fmt(c.fObs, 1);
+      const diff = c.fObs - state.f;
+      if (Math.abs(diff) < 0.05) {
+        els.trend.textContent = '与发射频率相同';
+        els.trend.className = 'obs-trend';
+      } else if (diff > 0) {
+        els.trend.textContent = `高于发射频率 ${fmt(diff, 1)} Hz`;
+        els.trend.className = 'obs-trend high';
+      } else {
+        els.trend.textContent = `低于发射频率 ${fmt(-diff, 1)} Hz`;
+        els.trend.className = 'obs-trend low';
+      }
+    } else {
+      els.fObs.textContent = '—';
+      els.trend.textContent = c.shockAhead ? '激波 · 无周期波前' : '接收器超过波速';
+      els.trend.className = 'obs-trend invalid';
+    }
+
+    els.statLambda.textContent = `${fmt(c.lam, 3)} m`;
+    els.statFront.textContent = c.front > 0 ? `${fmt(c.front, 3)} m` : '—（激波）';
+    els.statBack.textContent = `${fmt(c.back, 3)} m`;
+    els.statF.textContent = c.valid ? `${fmt(c.fObs, 1)} Hz` : '—';
+    els.statMach.textContent = c.mach ? fmt(c.mach, 2) : '—';
+    els.statAngle.textContent = c.machAngle != null ? `${fmt(c.machAngle, 1)}°` : '—';
+
+    if (c.recvOutrun) {
+      els.statBadge.textContent = '公式失效';
+      els.statBadge.className = 'badge danger';
+    } else if (c.mach) {
+      els.statBadge.textContent = '超音速';
+      els.statBadge.className = 'badge danger';
+    } else {
+      els.statBadge.textContent = '亚音速';
+      els.statBadge.className = 'badge ghost';
+    }
+
+    els.formulaBadge.textContent = directionBadge(c);
+    els.formulaBadge.className = 'badge' + (c.recvOutrun || c.shockAhead ? ' danger' : '');
+    renderFormula(c);
+  }
+
+  function renderFormula(c) {
+    const v = c.v;
+    const f = c.f;
+    const vs = c.vs;
+    const vr = c.vr;
+    const sR = state.vrDir === 'approach' ? '+' : '−';
+    const sS = state.vsDir === 'approach' ? '−' : '+';
+    const sideR = state.vrDir === 'approach' ? '靠近' : '远离';
+    const sideS = state.vsDir === 'approach' ? '靠近' : '远离';
+
+    if (c.recvOutrun) {
+      els.formula.innerHTML = `
+        <div class="warn">
+          <b>接收器超过波速，收不到波</b>
+          <p>接收器以 v<sub>r</sub> = ${fmt(vr, 0)} m/s 远离波源，而波速只有 v = ${fmt(v, 0)} m/s。波永远追不上接收器，观测频率不存在。</p>
+        </div>
+        <div class="eq-main">v − v<sub>r</sub> = ${fmt(v, 0)} − ${fmt(vr, 0)} = ${fmt(c.num, 0)} ≤ 0</div>`;
+      return;
+    }
+
+    if (c.shockAhead) {
+      els.formula.innerHTML = `
+        <div class="warn">
+          <b>源前方进入激波区</b>
+          <p>波源速度 v<sub>s</sub> = ${fmt(vs, 0)} m/s ≥ 波速 v = ${fmt(v, 0)} m/s。源前方的波前相互堆积，经典多普勒公式失效，应使用冲击波（马赫锥）模型。</p>
+        </div>
+        <div class="eq-main">M = ${frac(SUB_S, 'v')} = ${frac(fmt(vs, 0), fmt(v, 0))} = ${fmt(c.mach, 2)}</div>
+        <div class="eq-main">θ = arcsin(1 / M) = ${fmt(c.machAngle, 1)}°</div>
+        <p class="formula-note">画面中的红色虚线为马赫锥边界。在波源运动方向前方，不存在周期性波前，因此没有有限的 f′。</p>`;
+      return;
+    }
+
+    let eqMain = '';
+    let eqSub = '';
+    let steps = [];
+    const step1 = `<li><span class="n">1</span><div>由 <b>v = λf</b>：λ = v / f = ${fmt(v, 0)} / ${fmt(f, 1)} = ${fmt(c.lam, 3)} m。</div></li>`;
+
+    if (state.mode === 'receiverMoving') {
+      const numSym = vr === 0 ? 'v' : `v ${sR} ${SUB_R}`;
+      const numVal = vr === 0 ? fmt(v, 0) : `${fmt(v, 0)} ${sR} ${fmt(vr, 0)}`;
+      eqMain = `f′ = f · ${frac(numSym, 'v')}`;
+      eqSub = `${fmt(f, 1)} × ${frac(numVal, fmt(v, 0))}`;
+      steps = [
+        step1,
+        `<li><span class="n">2</span><div>波源静止，波长保持不变；接收器${sideR}波源，分子取 ${sR}v<sub>r</sub>，分母仍为 v。</div></li>`,
+        `<li><span class="n">3</span><div>f′ = ${fmt(f, 1)} × (${numVal}) / ${fmt(v, 0)} = <b>${fmt(c.fObs, 1)} Hz</b>。</div></li>`,
+      ];
+    } else if (state.mode === 'sourceMoving') {
+      const denSym = vs === 0 ? 'v' : `v ${sS} ${SUB_S}`;
+      const denVal = vs === 0 ? fmt(v, 0) : `${fmt(v, 0)} ${sS} ${fmt(vs, 0)}`;
+      const spacing = vs === 0 ? c.lam : (state.vsDir === 'approach' ? c.front : c.back);
+      const side = state.vsDir === 'approach' ? '前' : '后';
+      eqMain = `f′ = f · ${frac('v', denSym)}`;
+      eqSub = `${fmt(f, 1)} × ${frac(fmt(v, 0), denVal)}`;
+      steps = [
+        step1,
+        `<li><span class="n">2</span><div>波源${sideS}接收器，运动${side}方的波前间距变为 λ<sub>${side}</sub> = (v ${sS} v<sub>s</sub>) / f = ${fmt(spacing, 3)} m。</div></li>`,
+        `<li><span class="n">3</span><div>接收器静止，波相对它以 v 通过：f′ = v / λ<sub>${side}</sub> = ${fmt(c.fObs, 1)} Hz。</div></li>`,
+      ];
+    } else {
+      const numSym = vr === 0 ? 'v' : `v ${sR} ${SUB_R}`;
+      const denSym = vs === 0 ? 'v' : `v ${sS} ${SUB_S}`;
+      const numVal = vr === 0 ? fmt(v, 0) : `${fmt(v, 0)} ${sR} ${fmt(vr, 0)}`;
+      const denVal = vs === 0 ? fmt(v, 0) : `${fmt(v, 0)} ${sS} ${fmt(vs, 0)}`;
+      const spacing = vs === 0 ? c.lam : (state.vsDir === 'approach' ? c.front : c.back);
+      const side = state.vsDir === 'approach' ? '前' : '后';
+      eqMain = `f′ = f · ${frac(numSym, denSym)}`;
+      eqSub = `${fmt(f, 1)} × ${frac(numVal, denVal)}`;
+      const sourcePart = vs === 0
+        ? '波源静止，介质中波长不变'
+        : `源运动使${side}方波前间距变为 λ<sub>${side}</sub> = ${fmt(spacing, 3)} m`;
+      const recvPart = vr === 0
+        ? '接收器静止，相对波前的速度为 v'
+        : `接收器${sideR}波源，相对波前的速度为 v ${sR} v<sub>r</sub>`;
+      steps = [
+        step1,
+        `<li><span class="n">2</span><div>${sourcePart}；${recvPart}。</div></li>`,
+        `<li><span class="n">3</span><div>f′ = (v ${sR} v<sub>r</sub>) / λ<sub>${side}</sub> = <b>${fmt(c.fObs, 1)} Hz</b>。</div></li>`,
+      ];
+    }
+
+    const machNote = c.mach
+      ? `<p class="formula-note">注意：源速度已超过波速，画面显示马赫锥（M = ${fmt(c.mach, 2)}，θ = ${fmt(c.machAngle, 1)}°）。此处计算的是位于波源运动后方接收点的频率。</p>`
+      : '';
+
+    els.formula.innerHTML = `
+      <div class="eq-main">${eqMain}</div>
+      <div class="eq-sub">= ${eqSub} = <b>${fmt(c.fObs, 1)} Hz</b></div>
+      <ol class="steps">${steps.join('')}</ol>
+      ${machNote}`;
+  }
+
+  // ===== 画布尺寸 =====
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    view.w = w;
+    view.h = h;
+    view.scale = w / WORLD_W;
+    view.cy = h * 0.5;
+    updateScaleBar();
+  }
+
+  function updateScaleBar() {
+    if (!view.scale) return;
+    let meters = 5;
+    if (meters * view.scale < 64) meters = 10;
+    if (meters * view.scale > 210) meters = 2;
+    els.scaleLine.style.width = `${metrics(meters)}px`;
+    els.scaleText.textContent = `${meters} m`;
+    function metrics(m) { return Math.round(m * view.scale); }
+  }
+
+  // ===== 绘制 =====
+  function drawLabel(text, x, y, color, size = 12) {
+    ctx.save();
+    ctx.font = `600 ${size}px "Segoe UI","Microsoft YaHei",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(4,9,18,.9)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawArrow(x, y, direction, speed, color) {
+    const len = clamp(speed / Math.max(state.v, 1) * 110, 22, 100);
+    const x1 = x + direction * len;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x1, y);
+    ctx.stroke();
+    const ah = 6;
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(x1 - direction * ah, y - ah * 0.7);
+    ctx.lineTo(x1 - direction * ah, y + ah * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMach(c, scale, cy) {
+    const x = state.sourceX * scale;
+    const back = state.vsDir === 'approach' ? Math.PI : 0;
+    const mu = Math.asin(clamp(1 / c.mach, -1, 1));
+    const L = 14 * scale;
+    const p1 = { x: x + L * Math.cos(back - mu), y: cy + L * Math.sin(back - mu) };
+    const p2 = { x: x + L * Math.cos(back + mu), y: cy + L * Math.sin(back + mu) };
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,123,114,.06)';
+    ctx.beginPath();
+    ctx.moveTo(x, cy);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.setLineDash([7, 7]);
+    ctx.strokeStyle = 'rgba(255,123,114,.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, cy); ctx.lineTo(p1.x, p1.y);
+    ctx.moveTo(x, cy); ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    ctx.restore();
+
+    drawLabel(`马赫锥 θ = ${fmt(c.machAngle, 1)}°`, (x + p1.x) / 2, (cy + p1.y) / 2 - 15, '#ff9b92', 11);
+  }
+
+  function draw() {
+    if (!view.w || !view.h) return;
+    const { w, h, scale, cy } = view;
+    ctx.clearRect(0, 0, w, h);
+
+    // 网格
+    ctx.save();
+    ctx.strokeStyle = 'rgba(110,150,210,.055)';
+    ctx.lineWidth = 1;
+    for (let x = 5; x < WORLD_W; x += 5) {
+      const px = x * scale;
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke();
+    }
+    const rows = Math.ceil((h / scale) / 5);
+    for (let i = -rows; i <= rows; i++) {
+      const py = cy + i * 5 * scale;
+      if (py < 0 || py > h) continue;
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
+    }
+    ctx.restore();
+
+    // 轨道
+    ctx.save();
+    ctx.strokeStyle = 'rgba(140,180,240,.18)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+    ctx.restore();
+
+    // 波前
+    for (const wv of state.waves) {
+      const r = (state.time - wv.t) * state.v;
+      if (r <= 0 || r > MAX_R) continue;
+      const cx = wv.x * scale;
+      const rp = r * scale;
+      if (cx + rp < -40 || cx - rp > w + 40) continue;
+      const alpha = Math.max(0.03, 0.6 * (1 - r / MAX_R));
+      ctx.strokeStyle = `rgba(88,214,255,${alpha.toFixed(3)})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rp, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const c = compute();
+    if (c.mach) drawMach(c, scale, cy);
+
+    // 波源
+    const sx = state.sourceX * scale;
+    const grd = ctx.createRadialGradient(sx, cy, 0, sx, cy, 24);
+    grd.addColorStop(0, 'rgba(255,180,84,.55)');
+    grd.addColorStop(1, 'rgba(255,180,84,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(sx, cy, 24, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffb454';
+    ctx.beginPath(); ctx.arc(sx, cy, 6.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    drawLabel(c.vs === 0 ? '波源 · 静止' : `波源 · ${fmt(c.vs, 0)} m/s`, sx, cy - 36, '#ffd9a0');
+    if (c.vs > 0) drawArrow(sx, cy - 19, dirSign(state.vsDir), c.vs, '#ffb454');
+
+    // 接收器
+    const rx = state.receiverX * scale;
+    ctx.strokeStyle = '#7ee787';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(rx, cy, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#7ee787';
+    ctx.beginPath(); ctx.arc(rx, cy, 3, 0, Math.PI * 2); ctx.fill();
+
+    drawLabel(c.vr === 0 ? '接收器 · 静止' : `接收器 · ${fmt(c.vr, 0)} m/s`, rx, cy + 38, '#a7f3b3');
+    if (c.vr > 0) drawArrow(rx, cy + 21, state.vrDir === 'approach' ? -1 : 1, c.vr, '#7ee787');
+  }
+
+  // ===== 仿真 =====
+  function stepSimulation(dt) {
+    state.time += dt;
+
+    const vs = effVs();
+    const vr = effVr();
+
+    if (state.mode !== 'receiverMoving') {
+      state.sourceX += vs * dt * dirSign(state.vsDir);
+    }
+    if (state.mode !== 'sourceMoving') {
+      state.receiverX -= vr * dt * dirSign(state.vrDir);
+    }
+
+    // 发射波前
+    if (state.nextEmit < state.time - 1) state.nextEmit = state.time;
+    let guard = 0;
+    while (state.nextEmit <= state.time && guard++ < 64) {
+      state.waves.push({ x: state.sourceX, t: state.nextEmit });
+      state.nextEmit += 1 / state.f;
+    }
+    if (state.waves.length > MAX_WAVES) {
+      state.waves.splice(0, state.waves.length - MAX_WAVES);
+    }
+
+    // 清理超出视野的旧波前
+    const cutoff = state.time - MAX_R / state.v;
+    while (state.waves.length && state.waves[0].t < cutoff) {
+      state.waves.shift();
+    }
+
+    // 循环：相遇或越界后重置
+    const dx = Math.abs(state.sourceX - state.receiverX);
+    if (dx < 1.2) {
+      resetSceneSoft();
+      return;
+    }
+    if (state.mode !== 'receiverMoving' && (state.sourceX < BOUND_L || state.sourceX > BOUND_R)) {
+      resetSceneSoft();
+      return;
+    }
+    if (state.mode !== 'sourceMoving' && (state.receiverX < BOUND_L || state.receiverX > BOUND_R)) {
+      resetSceneSoft();
+    }
+  }
+
+  let lastTs = 0;
+  function frame(ts) {
+    if (!lastTs) lastTs = ts;
+    const dtReal = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+
+    if (!state.paused && !state.dialogOpen) {
+      stepSimulation(dtReal * state.slow);
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ===== 事件 =====
+  els.modeTabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-mode]');
+    if (!btn) return;
+    setMode(btn.dataset.mode);
+  });
+
+  els.vRange.addEventListener('input', () => setV(parseFloat(els.vRange.value)));
+  els.fRange.addEventListener('input', () => setF(parseFloat(els.fRange.value)));
+  els.lRange.addEventListener('input', () => setLambda(parseFloat(els.lRange.value)));
+
+  els.vNum.addEventListener('change', () => {
+    const val = parseFloat(els.vNum.value);
+    if (Number.isFinite(val)) setV(val); else syncControls();
+  });
+  els.fNum.addEventListener('change', () => {
+    const val = parseFloat(els.fNum.value);
+    if (Number.isFinite(val)) setF(val); else syncControls();
+  });
+  els.lNum.addEventListener('change', () => {
+    const val = parseFloat(els.lNum.value);
+    if (Number.isFinite(val)) setLambda(val); else syncControls();
+  });
+
+  els.vsRange.addEventListener('input', () => requestSpeed('vs', parseFloat(els.vsRange.value)));
+  els.vrRange.addEventListener('input', () => requestSpeed('vr', parseFloat(els.vrRange.value)));
+  els.vsNum.addEventListener('change', () => {
+    const val = parseFloat(els.vsNum.value);
+    if (Number.isFinite(val)) requestSpeed('vs', val); else syncControls();
+  });
+  els.vrNum.addEventListener('change', () => {
+    const val = parseFloat(els.vrNum.value);
+    if (Number.isFinite(val)) requestSpeed('vr', val); else syncControls();
+  });
+
+  els.vsDirCtl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-dir]');
+    if (!btn) return;
+    setDirection('vs', btn.dataset.dir);
+  });
+  els.vrDirCtl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-dir]');
+    if (!btn) return;
+    setDirection('vr', btn.dataset.dir);
+  });
+
+  els.playBtn.addEventListener('click', () => {
+    state.paused = !state.paused;
+    updatePlayUi();
+  });
+
+  els.resetBtn.addEventListener('click', () => {
+    state.paused = false;
+    resetScene();
+  });
+
+  els.slowSelect.addEventListener('change', () => {
+    state.slow = parseFloat(els.slowSelect.value) || 0.01;
+  });
+
+  els.shockConfirm.addEventListener('click', () => closeShockDialog(true));
+  els.shockCancel.addEventListener('click', () => closeShockDialog(false));
+  els.shockModal.addEventListener('click', (e) => {
+    if (e.target === els.shockModal) closeShockDialog(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.dialogOpen) closeShockDialog(false);
+  });
+
+  // ===== 初始化 =====
+  function init() {
+    resizeCanvas();
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(resizeCanvas).observe(wrap);
+    } else {
+      window.addEventListener('resize', resizeCanvas);
+    }
+    initialPositions();
+    syncControls();
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  // 首次布局完成后再测量画布
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
